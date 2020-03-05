@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.java.mapper.AuthorityMapper">
+
+    <resultMap id="oneMenuMap" type="com.java.pojo.OneMenu">
+        <result property="oneId" javaType="Long" column="oneId"></result>
+        <result property="oneName" javaType="String" column="oneName"></result>
+        <collection property="twoMenuList" ofType="com.java.pojo.TwoMenu">
+            <result property="twoId" javaType="Long" column="twoId"></result>
+            <result property="twoName" javaType="String" column="twoName"></result>
+            <result property="twoUrl" javaType="String" column="twoUrl"></result>
+        </collection>
+    </resultMap>
+
+    <!--查询所有一级菜单-->
+	<select id="selectAuthority" resultMap="oneMenuMap">
+		SELECT * FROM
+        (SELECT id AS oneId,authority_name AS oneName FROM `system_authority` WHERE id
+        IN(
+            SELECT auth_id FROM `role_auth` WHERE role_id=
+        (SELECT role_id FROM SYSTEM_USER WHERE username=#{0} AND pwd=#{1} AND use_status='1')
+        ) AND parent=0) tb1
+        INNER JOIN
+        (SELECT id AS twoId,authority_name AS twoName,authority_url AS twoUrl,parent FROM `system_authority` WHERE id
+        IN(
+            SELECT auth_id FROM `role_auth` WHERE role_id=
+        (SELECT role_id FROM SYSTEM_USER WHERE username=#{0} AND pwd=#{1} AND use_status='1')
+        ) AND parent!=0) tb2
+        ON tb1.oneId=tb2.parent
+	</select>
+
+    <!--查询所有可以被授权的普通权限-->
+    <select id="selectPTAuthority" resultMap="oneMenuMap">
+        SELECT tb.*,id AS twoId,authority_name AS twoName,authority_url AS twoUrl,parent FROM `system_authority` sa INNER JOIN
+        (SELECT id AS oneId,authority_name AS oneName FROM `system_authority` WHERE parent=0 AND flag=0
+        ) tb
+        ON tb.oneId=sa.parent WHERE sa.flag=0
+    </select>
+
+    <!--连环插-->
+    <insert id="insertManyRoleAuth">
+        INSERT INTO `role_auth` VALUES
+        <foreach collection="authId" item="temp" separator=",">
+            (NULL,#{roleId},#{temp})
+        </foreach>
+    </insert>
+</mapper>
